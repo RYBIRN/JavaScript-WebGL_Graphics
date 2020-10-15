@@ -1,0 +1,486 @@
+<!DOCTYPE HTML>
+<HTML lang="en">
+	<Head>
+	<Title>"Modularizing WebGL"</TITLE>
+		
+		<!-- 
+		GLSL is the language used for shaders (GL Shader Language)
+		
+		Attribute - you specify how to pull the data out of the buffers you supply.
+		Buffers - Data loaded onto the GPU (Normally vertex information)
+		
+		Uniforms - global variables (in GLSL) that you set before you run the shader program
+		
+		Textures - Textures are arrays of data you can randomly acces in your shader program.  
+		
+		Varying - are way for a vertex shader to pass data to the fragmentShader.
+		-->
+				<script id="2dVertexShader" type="notjs">
+		attribute vec4 a_position;	
+		
+		//WE need to add varying and attributes for the texture vertex.
+		attribute vec2 vertTexCoord;
+		varying vec2 v_vertTexCoord;
+		
+		uniform vec3 transform;
+		uniform vec3 rotation;	
+		//I have added these and initialized them to 0,0,0 in 
+		//webgl_interface
+		
+			uniform vec3 lightPosition;
+		
+		uniform vec3 worldLoc;
+		uniform vec3 worldRotation;
+		varying vec3 fakenormal;
+		varying vec3 v_surfaceToLight1;
+		varying vec3 v_surfaceToLight2;
+		varying vec3 v_surfaceToLight3;
+		varying vec3 v_surfaceToLight4;
+		varying vec3 v_surfaceToLight5;
+		varying vec3 v_surfaceToView;
+		varying vec3 v_spot_surfaceToLight;
+		
+		
+		void main()
+		{
+			vec3 c = cos(rotation*-1.0);
+			vec3 s = sin(rotation*-1.0);
+			v_vertTexCoord = vertTexCoord;
+			
+			
+			vec3 cw = cos(worldRotation);
+			vec3 sw = sin(worldRotation);
+			//We need to setup the view martix
+			
+			//We need to setup the projetion matrix
+			
+			//We need to setup the projetion matrix
+				
+				//Surprise!  we have to go column firt when we enter the matrix.
+				mat4 translateModel = mat4(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,transform.x,transform.y,transform.z,1);
+				mat4 rotateXModel = mat4(1.0,0.0,0.0,0.0,0.0,c.x,s.x,0.0,0.0,-1.0*s.x,c.x,0.0,0.0,0.0,0.0,1.0);
+				mat4 rotateYModel = mat4(c.y,0.0,-1.0*s.y,0.0,0.0,1.0,0.0,0.0,s.y,0.0,c.y,0.0,0.0,0.0,0.0,1.0);
+				mat4 rotateZModel = mat4(c.z,s.z,0.0,0.0,-1.0*s.z,c.z,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
+				
+				mat4 perspectiveOrtho = mat4(0.2,0.0,0.0,0.0,
+											0.0,0.2,0.0,0.0, 
+											0.0,0.0,0.2,0.0, 
+											0.0,0.0,0.0,1.0);
+				
+				mat4 perspective = 		mat4(1.0/1.0,0,0,0, 
+											0,1.0/1.0,0,0, 
+											0,0,-1.0*(25.0+1.0)/(25.0-1.0),-1, 
+											0,0,-2.0*25.0*1.0/(25.0-1.0),0);
+				
+				mat4 translateView = mat4(1.0,0.0,0.0,0.0,
+										0.0,1.0,0.0,0.0,
+										0.0,0.0,1.0,0.0,
+										-1.0*worldLoc.x,-1.0*worldLoc.y,worldLoc.z,1.0
+										);
+				/*mat4 camRZ = mat4(cw.z,sw.z,0.0,0.0,
+								-1.0*sw.z,cw.z,0.0, 
+								0, 0,0,1,0, 
+								0,0,0,1);*/
+				mat4 rotateView = mat4(cw.y,0.0,-1.0*sw.y,0.0,
+										0.0,1.0,0.0,0.0,
+										sw.y,0.0,cw.y,0.0,
+										0.0,0.0,0.0,1.0);
+				vec4 worldSpace = translateModel*rotateXModel*rotateYModel*rotateZModel*a_position;
+				vec4 viewSpace = rotateView*translateView*worldSpace;
+				gl_Position = perspective*viewSpace;
+
+			fakenormal = vec3(rotateYModel*a_position);
+			if(length(fakenormal)>1.5)
+			{
+				fakenormal = vec3(0,1,0);
+			}
+			
+			v_surfaceToLight1 = vec3(7.0,1.0,0.0) - worldSpace.xyz;
+			v_surfaceToLight2 = vec3(0.0,0.0,10.0) - worldSpace.xyz;
+			v_surfaceToLight3 = vec3(10.0,0.0,5.0) - worldSpace.xyz;
+			v_surfaceToLight4 = vec3(-5.0,1.0,0.0) - worldSpace.xyz;
+			v_surfaceToLight5 = vec3(-8.0,0.0,-4.0) - worldSpace.xyz;
+			
+			v_surfaceToView = worldLoc - worldSpace.xyz;
+			
+			
+			v_spot_surfaceToLight = lightPosition - worldSpace.xyz;
+			
+		
+		}		
+		</SCRIPT>
+		<script id="2dFragmentShader" type="notjs">
+		//Fragment shaders do not have precision so we have to set it.
+		precision mediump float;
+		
+		varying vec3 fakenormal;
+		
+		varying vec3 v_surfaceToLight1;
+		varying vec3 v_surfaceToLight2;
+		varying vec3 v_surfaceToLight3;
+		varying vec3 v_surfaceToLight4;
+		varying vec3 v_surfaceToLight5;
+		
+		varying vec3 v_surfaceToView;
+		varying vec3 v_spot_surfaceToLight;
+		//WE need to declare our varying
+		//We need to create a sampler
+		varying vec2 v_vertTexCoord;
+		uniform sampler2D sampler;
+		void main()
+		{	
+			//We need to sample the texture
+		
+			highp vec4 texelColor = texture2D(sampler,v_vertTexCoord);
+				
+			float ambient = 0.4;
+		
+			
+			float d_light = dot(normalize(fakenormal),normalize(vec3(20.0,5.0,20.0)))*.25;
+			if(d_light < 0.0)
+			{
+				d_light = 0.0;
+			}
+				
+			float p_light1 = dot(normalize(fakenormal),normalize(v_surfaceToLight1))*1.5/length(v_surfaceToLight1);
+			if(p_light1 < 0.0)
+			{
+				p_light1 = 0.0;
+			}
+			
+			float p_light2 = dot(normalize(fakenormal),normalize(v_surfaceToLight2))*1.5/length(v_surfaceToLight2);
+			if(p_light2 < 0.0)
+			{
+				p_light2 = 0.0;
+			}
+			float p_light3 = dot(normalize(fakenormal),normalize(v_surfaceToLight3))*1.5/length(v_surfaceToLight3);
+			if(p_light3 < 0.0)
+			{
+				p_light3 = 0.0;
+			}
+			float p_light4 = dot(normalize(fakenormal),normalize(v_surfaceToLight4))*1.5/length(v_surfaceToLight4);
+			if(p_light4 < 0.0)
+			{
+				p_light4 = 0.0;
+			}
+			float p_light5 = dot(normalize(fakenormal),normalize(v_surfaceToLight5))*1.5/length(v_surfaceToLight5);
+			if(p_light5 < 0.0)
+			{
+				p_light5 = 0.0;
+			}
+			
+			/*
+			vec3 halfVector = normalize(normalize(v_surfaceToLight)+normalize(v_surfaceToView));
+			
+			float s_light = 0.0;
+			float shiny = 50.0;
+			if(p_light > 0.0)
+			{
+				s_light = dot(normalize(fakenormal),normalize(halfVector));
+				if(s_light < 0.0)
+				{
+				
+				s_light = 0.0;
+				}
+				s_light = pow(s_light,shiny)*2.0/length(v_surfaceToLight);
+				
+				
+			}
+			//gl_FragColor = vec4(fragColor*(p_light)+s_light,1);
+			//gl_FragColor = vec4(fragColor*(ambient+d_light+p_light)+s_light,1);
+			*/
+			float spot_light_power = 0.0;
+			float spot_light = dot(normalize(v_spot_surfaceToLight),vec3(0,1.8,0));
+			
+			if(spot_light >= .99)
+			{
+				spot_light_power = dot(normalize(fakenormal),normalize(v_spot_surfaceToLight));
+				if(spot_light_power <0.0)
+				{
+					spot_light_power = 0.0;
+				}
+			}
+			gl_FragColor = vec4(texelColor.rgb*((ambient)+(d_light)+(p_light1+p_light2+p_light3+p_light4+p_light5)+spot_light_power),1);
+				//gl_FragColor = vec4(fragColor*(ambient),1);
+			//gl_FragColor = vec4(fragColor*(spot_light_power),1);
+		}
+		</script>
+		
+		<script src="webgl_interface.js"></script>
+		<script src="HexgonTube.js"></script>
+		<script>
+		//HELPER FUNCTION SCRIPTS
+			function loop()
+			{
+			if(m.gameOver == false){
+			gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+			//Do stuff here.
+			for(i =0;i<m.myShapes.length; i ++)
+					{
+						//m.myShapes[i].rot[1]+=.01;
+						m.myShapes[i].render(m.myWEBGL.program);
+					}
+					
+					if(m.camLoc[0] > 32 && m.camLoc[2] < -32){
+						console.log("you win!");
+						m.gameOverWin();	
+						}
+			requestAnimationFrame(loop);
+			}
+			}
+				function checkForCollision(x,y,z)
+			{
+			//for i in all objects
+			for(var i = 0; i < m.solidObjects.length; i++){
+			//console.log(m.solidObjects[i].loc);
+				var distanceAway = Math.sqrt(Math.pow(m.solidObjects[i].loc[0] - x, 2)+Math.pow(m.solidObjects[i].loc[1] - y, 2)+Math.pow(m.solidObjects[i].loc[2] + z, 2));
+				console.log("distance is: " +distanceAway);
+					if(distanceAway <= m.solidObjects[i].radius+Math.sqrt(2))
+				   return false; 
+			}
+			
+			
+			return true;
+			}
+			function keyDown(event)
+			{		
+				var tempX = m.camLoc[0];
+				var tempY = m.camLoc[1];
+				var tempZ = m.camLoc[2];
+				console.log("[X,Z] " +"["+tempX+","+tempZ+"]");
+				switch(String.fromCharCode(event.keyCode))
+				{
+					//Do stuff here.
+					//
+					
+					case "A":
+						 tempX = m.camLoc[0]- Math.cos(m.camRot[1])*.1;
+						 tempZ = m.camLoc[2]+ Math.sin(m.camRot[1])*.1;
+						 //console.log("[tempX,tempZ] " +"["+tempX+","+tempZ+"]");
+						break;
+					case "S":
+						tempX = m.camLoc[0]- Math.sin(m.camRot[1])*.1;
+						tempZ = m.camLoc[2]- Math.cos(m.camRot[1])*.1;
+						//console.log("[tempX,tempZ] " +"["+tempX+","+tempZ+"]");
+						break;
+					case "D":
+						tempX = m.camLoc[0]+ Math.cos(m.camRot[1])*.1;
+						tempZ = m.camLoc[2]- Math.sin(m.camRot[1])*.1;
+						//console.log("[tempX,tempZ] " +"["+tempX+","+tempZ+"]");
+						break;
+					case "W":
+						//console.log(Math.cos(m.camRot[1])+","+Math.sin(m.camRot[1]));
+						tempX = m.camLoc[0]+ Math.sin(m.camRot[1])*.1;
+						tempZ = m.camLoc[2]+ Math.cos(m.camRot[1])*.1;
+						//console.log("[tempX,tempZ] " +"["+tempX+","+tempZ+"]");
+						
+						break;
+					case "Z":
+						m.camRot[1]-=.05;
+						break;
+					case "X":
+						m.camRot[1]+=.05;
+						break;
+
+				}
+				
+						//Check for collisions
+						if(checkForCollision(tempX,tempY,tempZ))
+						{
+						m.camLoc[0] = tempX;
+						m.camLoc[1] = tempY;
+						m.camLoc[2] = tempZ;
+						}
+				var camLock  = gl.getUniformLocation(m.myWEBGL.program,'worldLoc');
+				gl.uniform3fv(camLock,new Float32Array(m.camLoc));
+				var camRotoation  = gl.getUniformLocation(m.myWEBGL.program,'worldRotation');
+				gl.uniform3fv(camRotoation,new Float32Array(m.camRot));
+				
+				
+			}
+			function canvasHandle(event)
+			{
+			}
+			
+			function createCheckered()
+			{
+				//Actually get our texture;
+				var myPic = [];
+				for(i =0; i < 16; i ++)
+				{
+					for(j =0; j< 16; j ++)
+					{
+						if(i%2 == j%3)
+						{
+							//Push red
+							myPic.push(30,30,255,255);
+						}
+						else
+						{
+							myPic.push(30,255,30,128);
+						}	
+					}
+				}
+				return myPic;
+			}
+			
+			function createBrick()
+			{
+				var myPic2 = [];
+				for(i =0; i < 16; i ++)
+				{
+					for(j =0; j< 16; j ++)
+					{
+						if(i == 0 || j ==3)
+						{
+							//Push red
+							myPic2.push(0,0,255,255);
+						}
+						else
+						{
+							myPic2.push(255,30,30,255);
+						}		
+					}
+				}
+				return myPic2;
+			}
+			
+				function createGround()
+			{
+				var myPic2 = [];
+				for(i =0; i < 16; i ++)
+				{
+					for(j =0; j< 16; j ++)
+					{
+						if(i == 2 || j == 3)
+						{
+							//Push red
+							myPic2.push(80,100,140,255);
+						}
+						else
+						{
+							myPic2.push(180,140,30,255);
+						}		
+					}
+				}
+				return myPic2;
+			}
+		
+			function createCrate()
+			{
+				//we want to create a crate with black around the sides
+				//and a black x throug the middle
+				//The rest will be brown.   
+			}
+			
+			
+		//MAIN CLASS
+		class main
+		{	
+			constructor()
+			{
+				this.gameOver = false;
+				this.camLoc = [15.0,0,-15.0];
+				this.camRot = [0,0,0];
+				
+				this.solidObjects = [];
+				this.triggerObjects = [];
+				
+				this.mapArray = [];
+				for(var i = 0; i < 10; i++)
+				this.mapArray[i] = [];
+				
+				for(var i = 0; i < 10; i++){
+					for(var j = 0; j < 10; j++){
+						if(i== 8 && j == 9)
+						this.mapArray[i][j] = 0;
+						else if(i == 0 || j == 0)
+						this.mapArray[i][j] = 2;
+						else if(i == 9 || j == 9)
+						this.mapArray[i][j] = 1
+						else if( i == 3 && j == 2 || j == 3 && i == 2)
+						this.mapArray[i][j] = 2;
+						else if( i == 6 && j == 4 || j == 7 && i == 6)
+						this.mapArray[i][j] = 1;
+						else 
+						this.mapArray[i][j] = 0;
+						console.log(this.mapArray[i][j]);
+						}
+						}
+						
+				
+				this.myWEBGL = new WebGL_Interface();	
+				this.myShapes = [];
+				//var temp = new Box();
+				//this.myShapes.push(temp);	
+					
+				
+				
+				console.log(this.mapArray);
+			
+						for(var i = 0; i < 10; i++){
+					for(var j = 0; j < 10; j++){
+					if(this.mapArray[i][j] == 1){
+						var temp = new Wall1();
+					temp.loc=[i*4,1,j*4];
+					this.myShapes.push(temp);	
+					this.solidObjects.push(temp);
+					}
+					else if(this.mapArray[i][j] == 2){
+					var temp = new Wall2();
+					temp.loc=[i*4,1,j*4];
+					this.myShapes.push(temp);	
+					this.solidObjects.push(temp);
+					}
+					}
+					}
+					
+			
+					
+					
+				
+				temp = new Ground();
+				temp.loc=[100,-1,0];
+				this.myShapes.push(temp);
+				
+			
+			}
+				gameOverWin(){
+				var gameOverTxt = document.getElementById("gameOverWinText");
+					gameOverTxt.style.display = "block";
+					this.gameOver = true;
+				}
+		}		
+		</script>
+		
+		
+
+	</Head>
+	<BODY>
+		<HEADER>
+		
+		</HEADER>
+		
+		<CANVAS id="myCanvas" width="640" height="400">
+		
+			Your browser does not support canvas.
+		</CANVAS>
+		<p id="gameOverWinText" style="display:none";>Game Over You Win</p>
+		
+		<FOOTER>
+		
+		</FOOTER>
+		<SCRIPT>
+			var canvas = document.getElementById("myCanvas");
+			var gl = canvas.getContext("webgl");	
+			var m = new main();
+			requestAnimationFrame(loop);
+			window.onkeydown = keyDown;
+			canvas.addEventListener("click",canvasHandle);			
+		</SCRIPT>
+		
+	</BODY>
+	
+</HTML>
+		
+		

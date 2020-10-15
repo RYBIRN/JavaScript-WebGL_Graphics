@@ -1,0 +1,80 @@
+<!DOCTYPE HTML>
+<HTML lang="en">
+	<HEAD>
+		<Title>"Ryan's 2D Adventure Game"</TITLE>
+		
+		<!-- Class Files -->
+		<!--<script src="Name of JS FILE"></script>-->
+		<script src="Board.js"></script>
+		<script src="Character.js"></script>
+		<script src="Move.js"></script>
+		<!--Random Functions -->
+		<SCRIPT>
+			// function createBoard()
+			// {
+				// var board = new Board();
+				
+				//newBoard.tester();
+				// return board;
+			// }
+			
+			
+		
+		</SCRIPT>
+		<!-- main function -->
+		<SCRIPT>
+			function main()
+			{
+				<!-- var newBoard = new Board(); -->
+				<!-- newBoard.setMap(); -->
+				<!-- newBoard.placeObjects(); -->
+				<!-- ctx.clearRect(0,0,canvas.width,canvas.height); -->
+				<!-- newBoard.makeMove(); -->
+				var newMove = new PlayerMove();
+				newMove.gameLoop();
+			
+			}	
+		</SCRIPT>
+	</HEAD>
+	<BODY>
+		<HEADER></HEADER>
+		<H1>2D Adventure Game</H1>
+		<H2>Press Arrow Keys to move Character</H2>
+		
+		<IMG src="img/enemy1.png" alt="enemy1" width="64" height="64" style = "display:none;"  id="enemy1"/>
+		<IMG src="img/enemy2.png" alt="enemy2" width="64" height="64" style = "display:none;" id="enemy2"/>
+		<IMG src="img/enemy3.png" alt="enemy3" width="64" height="64" style = "display:none;" id="enemy3"/>
+		<IMG src="img/player.png" alt="player" width="64" height="64" style = "display:none;" id="player"/>
+		<IMG src="img/potion.png" alt="potion" width="64" height="64" style = "display:none;" id="potion"/>
+		<SECTION id="Canvas">
+		
+			<CANVAS width=640 height=640 id="myCanvas" style="border: 1px solid black;">
+				Your Web-Browser does not support Canvase
+			</CANVAS>
+			
+		</SECTION>
+		<!-- call our JavaScript at the end so all html elements are initialized -->
+		<SCRIPT>
+			//This is JavaScript
+			//This is a variable pointing at an HTML element...For this class we will allow it.			
+			
+			//This is the JavaScript variable pointing at the canvas.
+			var canvas = document.getElementById("myCanvas");
+		
+			//This is 2D drawing context for canvas	
+			var ctx = canvas.getContext("2d");		
+			//ctx.fillStyle = "lime";
+			//ctx.fillRect(0, 0, canvas.width+1, canvas.height+1);
+			
+		 
+			
+			
+		
+			main();//Invoke main to start the program.
+			
+		</SCRIPT>
+	</BODY>
+</HTML>
+
+
+

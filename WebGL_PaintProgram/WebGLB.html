@@ -1,0 +1,470 @@
+<HTML>
+
+	<HEAD>
+		<TITLE>Ryan's Paint Program</TITLE>
+		
+		
+		
+		<script id="2dVertexShader" type="notjs">
+		attribute vec4 a_position;	
+		attribute vec3 a_color;
+		varying vec3 v_color;
+		void main()
+		{
+			v_color = a_color;
+			gl_Position=a_position;
+		}		
+		</SCRIPT>
+		
+		<script id="2dFragmentShader" type="notjs">	
+		//Fragment shaders do not have precision so we have to set it.
+		precision mediump float;
+		varying vec3 v_color;
+		void main()
+		{
+			gl_FragColor = vec4(v_color,1); //Between 0 and 1.
+		}
+		</script>
+		<script src="WebGL.js" ></script>	
+		<SCRIPT src="NewShape.js"></SCRIPT>
+		<SCRIPT>
+			class Main
+			{
+				constructor()
+				{
+					this.myWebGl = new WebGL()
+					//this.myWebgl.program;
+					this.shapes = new Array();
+					//this.shapes.push(new Triangle);
+					this.shapeChoice = "line";
+					this.fillChoice = true;
+					
+					this.r = 0;
+					this.g = 0;
+					this.b = 0;
+					
+					this.prevX = 0;
+					this.prevY = 0;
+					
+					this.update()
+				}
+				update()
+				{
+				//master update for the program.
+					for(var i =0; i < this.shapes.length; i++)
+					{
+						this.shapes[i].update();
+					}
+					//clear screen
+					for(var i =0; i < this.shapes.length; i++)
+					{
+						this.shapes[i].draw(this.myWebGl.program);
+					}
+				}
+				
+				handlePoint(x,y)
+				{
+					this.selectShape();
+					this.convertHex();
+					this.selectFill();
+					//console.log("The click occurred on "+x+","+y);
+					if(this.shapes.length == 0 || 
+					this.shapes[this.shapes.length-1].isFinished == true)
+					{
+						
+						console.log("creating new Shape.");
+						console.log("shape choice is "+this.shapeChoice);
+						
+						//create a new shape and add the point.
+						if(this.shapeChoice == "line"){
+							//console.log("creating new line.")
+							this.shapes.push(new Line());
+							
+							
+						}
+						else if (this.shapeChoice == "triangle"){
+							if(this.fillChoice == true){
+								this.shapes.push(new Triangle());
+							
+							}
+							else{
+								this.shapes.push(new TriangleOutline());
+							
+						}
+						}
+						else if (this.shapeChoice == "rectangle"){
+							if(this.fillChoice == true){
+								this.shapes.push(new Rectangle());
+							
+							}
+							else{
+							this.shapes.push(new RectangleOutline());
+						
+						}
+						}
+						else if (this.shapeChoice == "nPointPolygon"){
+							if(this.fillChoice == true){
+								this.shapes.push(new NPointPolygon());
+							
+							}
+							else{
+							this.shapes.push(new NPointPolygonOutline());
+						
+						}
+						}
+						else if (this.shapeChoice == "circle"){
+									if(this.fillChoice == true){
+								this.shapes.push(new Circle());
+							
+							}
+							else{
+							this.shapes.push(new CircleOutline());
+							
+						}
+						}
+						this.shapes[this.shapes.length-1].addPoint(x,y,this.r,this.g,this.b);
+						this.animate = true;
+						
+						this.prevX = x;
+						this.prevY = y;
+					}
+					else
+					{
+						//add the point to the last shape.
+						if(this.shapeChoice == "rectangle"){
+						this.shapes[this.shapes.length-1].addPoint(this.prevX,y,this.r,this.g,this.b);
+						if(this.fillChoice == true){
+						this.shapes[this.shapes.length-1].addPoint(x,this.prevY,this.r,this.g,this.b);
+						this.shapes[this.shapes.length-1].addPoint(x,y,this.r,this.g,this.b);
+						}
+						else{
+						this.shapes[this.shapes.length-1].addPoint(x,y,this.r,this.g,this.b);
+						this.shapes[this.shapes.length-1].addPoint(x,this.prevY,this.r,this.g,this.b);
+						}
+						}
+						else if(this.shapeChoice == "circle"){
+							console.log("calculating circle...");
+							this.calcCircle(x,y,false);
+							
+						}
+						else if(this.shapeChoice == "nPointPolygon"){
+							//console.log("calculating circle...");
+							this.shapes[this.shapes.length-1].addPoint(x,y,this.r,this.g,this.b);
+							this.shapes[this.shapes.length-1].lastPoint += 1;
+							
+						}
+						else
+						this.shapes[this.shapes.length-1].addPoint(x,y,this.r,this.g,this.b);
+						
+						if(this.shapes[this.shapes.length-1].isFinished){
+							this.animate = false;
+						}
+					}
+					this.update()
+				}
+				
+				animatePoint(x,y)
+				{	
+					if(this.animate){
+					if(this.shapes.length != 0){
+						if(this.shapes[this.shapes.length-1].isFinished == false){
+					this.selectShape();
+					this.selectFill();
+						
+						if(this.shapeChoice == "rectangle" && 
+						 this.shapes[this.shapes.length - 1].numPoints == this.shapes[this.shapes.length - 1].lastPoint - 3){
+						
+						//console.log("drawing rectangle")
+						this.shapes[this.shapes.length-1].addPointTemp(this.prevX,y,this.r,this.g,this.b);
+						this.update();
+						
+						if(this.fillChoice == true){
+							this.shapes[this.shapes.length-1].addPointTemp(x,this.prevY,this.r,this.g,this.b);
+							this.shapes[this.shapes.length-1].addPointTemp(x,y,this.r,this.g,this.b);
+							this.update();
+						}
+						else{
+							this.shapes[this.shapes.length-1].addPointTemp(x,y,this.r,this.g,this.b);
+							//this.update(); //this adds extra line between first and last point
+							this.shapes[this.shapes.length-1].addPointTemp(x,this.prevY,this.r,this.g,this.b);
+							this.update();
+						
+						
+						}
+						for(var i = 0; i < 18; i++)
+							this.shapes[this.shapes.length-1].positions.pop();
+							this.shapes[this.shapes.length-1].numPoints = this.shapes[this.shapes.length-1].numPoints - 1;
+							this.shapes[this.shapes.length-1].numPoints = this.shapes[this.shapes.length-1].numPoints - 1;
+							this.shapes[this.shapes.length-1].numPoints = this.shapes[this.shapes.length-1].numPoints - 1;
+					}
+					else if(this.shapeChoice == "nPointPolygon"){
+							if(this.shapes[this.shapes.length-1].numPoints > 0 && this.shapes[this.shapes.length-1].numPoints < this.shapes[this.shapes.length-1].lastPoint){
+								this.shapes[this.shapes.length-1].addPointTemp(x,y,this.r,this.g,this.b);
+							this.update();
+							for(var i = 0; i < 6; i++)
+							this.shapes[this.shapes.length-1].positions.pop();
+							this.shapes[this.shapes.length-1].numPoints = this.shapes[this.shapes.length-1].numPoints - 1;
+						}
+					}
+				 	else if(this.shapeChoice == "circle"){
+						if(this.shapes[this.shapes.length - 1].numPoints > 0 && this.shapes[this.shapes.length-1].numPoints < this.shapes[this.shapes.length-1].lastPoint)
+						{
+							if(this.fillChoice == false){
+								this.shapes[this.shapes.length-1].numPoints -= 1;
+								for(var k = 0; k < 6; k++)
+								this.shapes[this.shapes.length-1].positions.pop();
+							
+							}
+							this.calcCircle(x,y,true);
+							
+							this.update();
+							
+							for(var i = 0; i <= 359; i++){
+								this.shapes[this.shapes.length-1].numPoints -= 1;
+								for(var j = 0; j < 6; j++)
+								this.shapes[this.shapes.length-1].positions.pop();
+							}
+							
+							
+					}
+					}					
+					else if(this.shapes[this.shapes.length - 1].numPoints > 0
+						&& this.shapes[this.shapes.length-1].numPoints < this.shapes[this.shapes.length-1].lastPoint){
+						//console.log("adding new point...")
+						this.shapes[this.shapes.length-1].addPointTemp(x,y,this.r,this.g,this.b);
+						this.update();
+						for(var i = 0; i < 6; i++)
+						this.shapes[this.shapes.length-1].positions.pop();
+						this.shapes[this.shapes.length-1].numPoints = this.shapes[this.shapes.length-1].numPoints - 1;
+						}
+						}
+						}
+					}
+					
+					}
+					
+				
+				
+				
+				selectShape(event)
+				{
+					//console.log("Shape Selected is ");
+					for(var i = 0; i < shapeType.length; i++){
+					if(shapeType[i].checked){
+					//console.log(shapeType[i].value);
+						if(this.shapeChoice == "triangle"){
+						if(shapeType[i].value != "triangle")
+						if(this.shapes[this.shapes.length-1].isFinished == false){
+						this.shapes.pop();
+						this.update();
+						}
+						}
+						if(this.shapeChoice == "rectangle"){
+						if(shapeType[i].value != "rectangle")
+						if(this.shapes[this.shapes.length-1].isFinished == false){
+						this.shapes.pop();
+						this.update;
+						}
+						}
+					if(this.shapeChoice == "nPointPolygon"){
+						if(shapeType[i].value != "nPointPolygon")
+					if(this.shapes[this.shapes.length-1].isFinished == false){
+						this.shapes.pop();
+						this.update();
+					}
+						}
+						if(this.shapeChoice == "circle"){
+						if(shapeType[i].value != "circle")
+						if(this.shapes[this.shapes.length-1].isFinished == false){
+						this.shapes.pop();
+						this.update();
+						}
+						} 
+					this.shapeChoice = shapeType[i].value;
+					}
+					}
+					
+				}
+				
+					
+				selectFill(event)
+				{
+					//console.log("fill choice is ");
+					if(fillType[0].checked){
+						if(this.fillChoice == false && this.shapes.length != 0)
+							this.shapes[this.shapes.length-1].isFinished = true;
+					this.fillChoice = true;
+					}
+					else{
+						if(this.fillChoice == true && this.shapes.length != 0)
+							this.shapes[this.shapes.length-1].isFinished = true;
+					this.fillChoice = false;
+					}
+				}
+				
+				convertHex(){
+					//console.log(color.value);
+					var hex = color.value;
+					hex = hex.replace('#','');
+					this.r = parseInt(hex.substring(0,2), 16);
+					this.g = parseInt(hex.substring(2,4), 16);
+					this.b = parseInt(hex.substring(4,6), 16);
+					this.r = this.r/255;
+					this.g = this.g/255;
+					this.b = this.b/255;
+					//console.log("color conversion is "+this.r+ " " +this.g + " "+ this.b);
+				}
+				
+				calcCircle(xPos,yPos,temp){
+					//this.selectFill();
+					var x = xPos;
+					var y = yPos;
+					
+					var width = (x - this.prevX)
+					var height = (y - this.prevY)
+					
+					var newX = 0;
+					var newY = 0;
+					
+					for(var i = 0; i <= 360; i++)
+					{
+						var j = i * Math.PI / 180;
+						
+						newX = Math.sin(j)*width + this.prevX;
+						newY = Math.cos(j)*height + this.prevY;
+						
+						//console.log("adding point "+newX+ " " +newY);
+						if(temp)
+						this.shapes[this.shapes.length-1].addPointTemp(newX,newY,this.r,this.g,this.b);
+					else
+						this.shapes[this.shapes.length-1].addPoint(newX,newY,this.r,this.g,this.b);
+						
+					}
+				}
+				
+				cancelShape(){
+					console.log("right mouse clicked.");
+					if(this.shapeChoice == "nPointPolygon"){
+						if(this.shapes[this.shapes.length-1].isFinished)
+							{
+							this.shapes.pop();
+							this.update();
+							}
+							else
+							{
+								this.shapes[this.shapes.length-1].isFinished = true;
+								this.animate = false;
+								this.update();
+							}
+					}
+					else{
+					this.shapes.pop();
+					this.update();
+					
+					}
+				}
+				
+				
+			}
+			
+			function canvasHandle(event)
+			{
+				var x = -1 + 2*event.clientX/myCanvas.width;
+				var y = -1 + 2*(myCanvas.height - event.clientY)/myCanvas.height;
+				myMain.handlePoint(x,y)
+			}
+			
+			function rightClickHandler(event)
+			{
+				event.preventDefault();
+				myMain.cancelShape();
+			}
+			
+			function mouseMove(event){
+				var x = -1 + 2*event.clientX/myCanvas.width;
+				var y = -1 + 2*(myCanvas.height - event.clientY)/myCanvas.height;
+				myMain.animatePoint(x,y);
+			}
+			function show(text1){
+				  var x = document.getElementById("text1");
+						x.style.display = "block";
+						
+			}
+			
+				function hide(text1){
+				  var x = document.getElementById("text1");
+						x.style.display = "none";	
+			}
+			
+
+			
+			
+		
+			
+		</SCRIPT>
+
+	
+	</HEAD>
+	<BODY>
+			<CANVAS id="myCanvas" width="640" height="400" style="border:solid black;">
+			Your browser does not support canvas.
+			</CANVAS>
+			
+			<br><p id="text1" style="display:none";>Right Click to stop drawing Polygon</p>
+			<p id="text2">Right Click to delete shape</p>
+			
+			
+			Select a Shape<br>
+				<input type="radio" name="shapeType" value="line" onClick="hide('text1')" checked> Line<br>
+				<input type="radio" name="shapeType" value="triangle" onClick="hide('text1')"> Triangle<br>
+				<input type="radio" name="shapeType" value="rectangle" onClick="hide('text1')"> Rectangle<br>
+				<input type="radio" name="shapeType" value="nPointPolygon" onClick="show('text1')"> N Point Polygon<br>
+				<input type="radio" name="shapeType" value="circle" onClick="hide('text1')"> Circle
+				
+			
+			<hr>
+		
+			Filled or Outlined<br>
+				<input type="radio" name="fillType" value="fill" checked> Fill<br>
+				<input type="radio" name="fillType" value="outline"> Outline<br>
+				<hr>
+			
+			
+			
+			Select Color:<br>
+				<input type="color" id="color" name="colorSelect" value="#ff0000">
+			
+			<div onmousemove="mouseMove()"></div>
+			
+			<SCRIPT>
+				var canvas = document.getElementById("myCanvas");
+				var gl = canvas.getContext("webgl");
+				canvas.addEventListener("click",canvasHandle);
+				
+				
+				var color = document.getElementById("color");
+			
+				
+				//Initialize the webgl interface.
+				myMain = new Main();
+				
+				var shapeType = document.getElementsByName("shapeType");
+				shapeType[0].addEventListener("click",myMain.selectShape);
+				shapeType[1].addEventListener("click",myMain.selectShape);
+				shapeType[2].addEventListener("click",myMain.selectShape);
+				shapeType[3].addEventListener("click",myMain.selectShape);
+				shapeType[4].addEventListener("click",myMain.selectShape);
+				
+				var fillType = document.getElementsByName("fillType");
+				fillType[0].addEventListener("click",myMain.selectFill);
+				fillType[1].addEventListener("click",myMain.selectFill);
+				
+				canvas.addEventListener("contextmenu", rightClickHandler);
+				canvas.addEventListener("mousemove",mouseMove);
+				
+				
+			</SCRIPT>
+			
+	</BODY>
+
+</HTML>
